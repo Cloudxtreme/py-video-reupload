@@ -1,0 +1,9 @@
+setup.py
+src/py_video_reupload/main.py
+src/py_video_reupload/qtgui.py
+src/py_video_reupload.egg-info/PKG-INFO
+src/py_video_reupload.egg-info/SOURCES.txt
+src/py_video_reupload.egg-info/dependency_links.txt
+src/py_video_reupload.egg-info/entry_points.txt
+src/py_video_reupload.egg-info/requires.txt
+src/py_video_reupload.egg-info/top_level.txt

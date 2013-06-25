@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: py-video-reupload
+Version: 0.1
+Summary: Simple Python application intended to reupload videos between video hosting sites
+Home-page: https://github.com/webnull
+Author: Damian Kęska
+Author-email: webnull.www@gmail.com
+License: GNU GPLv3
+Description: Simple Python application intended to reupload videos between video hosting sites, with built-in QT4-based interface
+Keywords: youtube vimeo download streaming video save
+Platform: UNKNOWN
