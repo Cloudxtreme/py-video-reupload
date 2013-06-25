@@ -1,4 +1,5 @@
 setup.py
+src/py_video_reupload/config.py
 src/py_video_reupload/main.py
 src/py_video_reupload/qtgui.py
 src/py_video_reupload.egg-info/PKG-INFO

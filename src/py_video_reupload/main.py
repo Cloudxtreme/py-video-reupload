@@ -5,9 +5,11 @@ import hashlib
 import json
 import re
 import time
+import fcntl
 import subprocess
 import argparse
 import http.client as httplib
+from py_video_reupload.config import *
 from you_get.downloader import *
 from io import StringIO
 from urllib.parse import urlparse
@@ -42,6 +44,15 @@ def parseJSONFromURL(url):
     
     return json.loads(response.read().decode('utf-8'))
     
+def non_block_read(output):
+    fd = output.fileno()
+    fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+    try:
+        return output.readline().decode('utf-8')
+    except:
+        return ""
+    
 
 class app:
     videoHandlers = {'youtube.com': youtube, 'vimeo.com': vimeo, 'dailymotion.com': dailymotion, 'blip.tv': blip}
@@ -49,6 +60,7 @@ class app:
     hooks = dict()
     info = dict()
     threads = dict()
+    state = ""
     
     def __init__(self, args):
         self.args = args
@@ -65,6 +77,8 @@ class app:
 
     def main(self):
         """ Main loop """
+        
+        self.config = pantheraConfig('~/.py-video-reupload/config.json', create=True)
     
         # execute main loop
         if "gui" in self.args:
@@ -111,6 +125,9 @@ class app:
         self.threads['_startDownloadFile'] = threading.Thread(target=self._startDownloadFile)
         self.threads['_startDownloadFile'].start()
         
+    def startUpload(self):
+        self._startUploadFile(self.uploadFile)
+        
     
     def _startDownloadCheck(self):
         """ Update progress bars etc. """
@@ -121,11 +138,18 @@ class app:
             try:
                 fileName = os.listdir(self.outputDir)[0]
                 fileSize = os.path.getsize(self.outputDir+"/"+fileName)
+                
+                if int(fileSize) >= int(self.info['size']):
+                    self.uploadFile = self.outputDir+"/"+fileName
+                    self.state = "downloaded"
+                    
                 self.hooks['downloadCheck'](str(fileSize), str(self.info['size']))
                 
-                # finish
-                if int(fileSize) >= int(self.info['size']):
+                if self.state == "downloaded":
                     return True
+                
+                # finish
+
                     
             except Exception as e:
                 print(e)
@@ -134,6 +158,8 @@ class app:
         """ File download thread """
     
         handler = self.videoHandlers[self.info['domain']]
+        
+        # Linux specific
         self.outputDir = '/tmp/'+hashlib.md5(self.info['link'].encode('utf-8')).hexdigest() 
         
         print(self.outputDir)
@@ -142,7 +168,56 @@ class app:
             os.mkdir(self.outputDir)
             
         print('you-get '+self.info['link']+' -o '+self.outputDir)
+        
+        # For Linux
         subprocess.getoutput('you-get --output-dir='+self.outputDir+' '+self.info['link'])
+        self.state = "downloaded"
+        
+    def _startUploadFile(self, fileName):
+        """ Uploading file to YouTube """
+        
+        #baseName, extension = os.path.splitext(fileName)
+        #os.rename(fileName, os.path.dirname(fileName)+"/upload."+extension)
+        #fileName = os.path.dirname(fileName)+"/upload."+extension
+    
+        self.state = "uploading"
+        #command = 'youtube-upload --email='+self.config.getKey("youtube_mail")+' --password='+self.config.getKey("youtube_password")+' --title="'+self.info['meta']['title']+'" '+fileName+' --category="Entertainment"'
+        command = [os.path.expanduser("youtube-upload"), "--email="+self.config.getKey("youtube_mail"), "--password="+self.config.getKey("youtube_password"), "--title="+self.info['meta']['title'], "--description="+self.info['meta']['description'], "--category=Entertainment", fileName]
+        
+        # Linux
+        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
+        
+        while True:
+            try:
+                outputOut = non_block_read(proc.stdout)
+                outputErr = non_block_read(proc.stderr)
+                
+               # if len(outputOut) == 0:
+               #     continue
+                
+                if "Traceback (most recent call last)" in str(outputOut):
+                    print("Got exception, exiting")
+                    raise Exception('Got esception, exiting thread')
+                    break
+                    
+                if len(outputErr) > 0 and outputErr != "\n":
+                    print(outputErr)
+                    
+                percent = re.findall("([0-9]+)%", outputErr)
+                
+                if len(percent) > 0:
+                    self.hooks['downloadCheck'](percent[0], 100)
+                
+                    if int(percent[0]) == 100:
+                        self.state = ""
+                        print("Upload finished")
+                        break
+                    
+            except Exception as e:
+                print(e)
+                break
+        
+        
         
     #### End of working threads
     

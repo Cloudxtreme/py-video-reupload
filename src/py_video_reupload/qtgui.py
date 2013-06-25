@@ -44,12 +44,22 @@ class mainWidget(QtGui.QWidget):
             
     def updateProgress(self, downloaded, total):
         """ Update progress bars """
-    
-        #self.progressText.setText("Downloaded "+downloaded+" of "+total+" bytes")
-        self.downloadBar.update_progressbar(((int(downloaded)*100)/int(total)))
+        
+        if self.app.state == "downloaded":
+            self.uploadButton.show()
+
+        if self.app.state == "uploading":
+            self.downloadBarTitle.setText("Uploading: "+downloaded+"%")
+            self.downloadBar.hide()
+        else:
+            self.downloadBar.update_progressbar(((int(downloaded)*100)/int(total)))
         
         if int(downloaded) == int(total):
             self.downloadBar.update_progressbar(100)
+        
+    def uploadButtonPressed(self):
+        self.app.startUpload()
+        self.uploadButton.hide()
         
     def initUI(self):
         """ Main window GUI """
@@ -58,8 +68,12 @@ class mainWidget(QtGui.QWidget):
         self.title = QtGui.QLabel('Title')
         self.description = QtGui.QLabel('Description')
         
+        # buttons
         self.downloadButton = QtGui.QPushButton("Submit")
         self.downloadButton.clicked.connect(self.downloadButtonPressed)
+        
+        self.uploadButton = QtGui.QPushButton("Upload")
+        self.uploadButton.clicked.connect(self.uploadButtonPressed)
         
         self.urlEdit = QtGui.QLineEdit()
         self.titleEdit = QtGui.QLineEdit()
@@ -86,6 +100,7 @@ class mainWidget(QtGui.QWidget):
         grid.addWidget(self.downloadBarTitle, 4, 0)
         grid.addWidget(self.downloadBar, 4, 1)
         grid.addWidget(self.progressText, 5, 1)
+        grid.addWidget(self.uploadButton, 5, 1)
         
         # buttons
         grid.addWidget(self.downloadButton, 1, 2)
@@ -108,6 +123,7 @@ class mainWidget(QtGui.QWidget):
         self.description.hide()
         self.descriptionEdit.hide()
         self.progressText.hide()
+        self.uploadButton.hide()
         
         self.downloadButton.show()
         
